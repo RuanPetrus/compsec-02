@@ -8,10 +8,10 @@ MIXCOLUMNS_MATRIX = np.array([
 ], np.uint8)
 
 def mix_col(col):
-    return np.dot(MIXCOLUMNS_MATRIX, col.T)
+    return np.dot(MIXCOLUMNS_MATRIX, col)
 
 def mix_cols(state):
-    return np.apply_along_axis(mix_col, axis=0, arr=state.T)
+    return np.apply_along_axis(mix_col, axis=0, arr=state)
 
 def main() -> None:
     state = np.array([
