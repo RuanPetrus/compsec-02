@@ -172,7 +172,7 @@ def aes_decrypt(text: int, cypher_key: int, rounds:int) -> int:
     add_round_key(state, keys[0:4])
     return state_num(state)
 
-def encrypt_array(data : bytearray, key, rounds=10) -> int:
+def ctr_encrypt(data : bytearray, key, rounds=10) -> int:
     blocks = []
     ctr = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
     for i in range(len(data)//16):
