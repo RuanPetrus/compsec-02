@@ -200,7 +200,6 @@ def main() -> None:
     x = encrypt_array(bytearray([123]*16), 12)
     y = encrypt_array(x, 12)
     print(y)
-
     
 
 if __name__ == "__main__":
