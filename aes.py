@@ -172,19 +172,34 @@ def aes_decrypt(text: int, cypher_key: int, rounds:int) -> int:
     add_round_key(state, keys[0:4])
     return state_num(state)
 
+def encrypt_array(data : bytearray, key, rounds=10) -> int:
+    blocks = []
+    ctr = 0xf0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+    for i in range(len(data)//16):
+        blocks.append(get_num(data[16*i:16*(i+1)])) 
+
+    outs = [aes_encrypt(ctr+i, key, rounds) for i in range(len(blocks))]
+    cyphers = [blocks[i] ^ outs[i] for i in range(len(blocks))]
+    result = []
+    for num in cyphers:
+        nums = get_words(num, 128, 8)
+        for byte in nums: result.append(byte)
+    
+    if len(data) % 16 != 0:
+        last = data[16 * (len(data) // 16):]
+        last_len = len(last)
+        last = get_num(last)
+        last_out = aes_encrypt(ctr+len(blocks), key, rounds)
+        last_cypher = last^(last_out >> (16-last_len))
+        last_num = get_words(last_cypher, last_len*8, 8)
+        for byte in last_num: result.append(byte)
+
+    return bytearray(result)
 
 def main() -> None:
-    k=0x124712741724781afe
-    x=aes_encrypt(
-       0xf0caf0fa,
-       k,
-       10
-   )
-    y= aes_decrypt(x,
-         k,
-         10
-        )
-    print(hex(y))
+    x = encrypt_array(bytearray([123]*16), 12)
+    y = encrypt_array(x, 12)
+    print(y)
 
     
 
