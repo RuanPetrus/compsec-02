@@ -12,25 +12,47 @@ MIXCOLUMNS_MATRIX = np.array([
     [3, 1, 1, 2],
 ])
 
-# citar codigo
-def mix_col(r):
-    a = [0]*4
-    b = [0]*4
-    for c in range(4):
-        a[c]=r[c]
-        h = r[c]>>7
-        b[c] = (r[c] << 1) % 256
-        b[c] ^= (h * 0x1B) % 256
-    r[0] = b[0] ^ a[3] ^ a[2] ^ b[1] ^ a[1] 
-    r[1] = b[1] ^ a[0] ^ a[3] ^ b[2] ^ a[2] 
-    r[2] = b[2] ^ a[1] ^ a[0] ^ b[3] ^ a[3] 
-    r[3] = b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0] 
-    return r
+IMIXCOLUMNS_MATRIX = np.array([
+    [0x0e, 0x0b, 0x0d, 0x09],
+    [0x09, 0x0e, 0x0b, 0x0d],
+    [0x0d, 0x09, 0x0e, 0x0b],
+    [0x0b, 0x0d, 0x09, 0x0e],
+])
 
-def mix_cols(state):
-    state = state.T
+def xtime(a, n):
+    if n == 0: return a
+    a = xtime(a,n-1)
+
+    msb = a >> 7
+    result = (a << 1) % 256
+    if msb == 1:
+        result ^= 0x1B
+    return result
+
+def mul(a,b):
+    result=0
+    for i in range(8):
+        if a & 1 == 1: 
+            result ^= xtime(b, i)
+        a >>= 1
+    return result
+
+def mul_mat_vec(mat, vec):
+    result = [0,0,0,0]
+
     for i in range(4):
-        state[i] = mix_col(state[i])
+        for j in range(4):
+            result[i] ^= mul(mat[i][j], vec[j])
+    return result
+
+def mix_col(r, mat):
+    return mul_mat_vec(mat, r)
+ 
+def mix_cols(state, mat):
+    state=state.T
+    for i in range(4):
+        state[i] = np.array(mix_col(state[i], mat))
+
 
 def cap_8bit(x: int) -> int:
     mask8bit = (1 << 8) - 1
@@ -83,27 +105,33 @@ def subbyte(state: State, sbox):
         for j in range(4):
             state[i][j] = sbox[state[i][j]]
 
+
 def shiftrows(state: State) -> State:
     for i in range(4):
         state[i] = np.roll(state[i], -i)
+
 def ishiftrows(state: State) -> State:
     for i in range(4):
-        state[i] = np.roll(state[i], -i)
+        state[i] = np.roll(state[i], i)
 
 def add_round_key(state: State, keys : list[int]):
     state = state.T
     for i in range(4):
         state[i] = np.array(get_words(get_num(state[i]) ^ keys[i]))
 
-def print_state(state):
+
+def state_num(state) -> int:
     result = 0
     for i in range(4):
         result <<= 32
         result |= int(get_num((state.T)[i]))
-    print(hex(result))
+    return result
+
+def print_state(state):
+    print(hex(state_num(state)))
 
 
-def aes(text: int, cypher_key: int, rounds:int) -> int:
+def aes_encrypt(text: int, cypher_key: int, rounds:int) -> int:
     values = get_words(text, 128, 8)
 
     state = np.array(values, dtype=np.uint8).reshape((4, 4)).T
@@ -116,20 +144,47 @@ def aes(text: int, cypher_key: int, rounds:int) -> int:
     for r in range(1, rounds):
         subbyte(state, sbox)
         shiftrows(state)
-        mix_cols(state)
+        mix_cols(state, MIXCOLUMNS_MATRIX)
         add_round_key(state, keys[4*r:4*(r+1)])
 
     subbyte(state, sbox)
     shiftrows(state)
     add_round_key(state, keys[4*rounds:4*(rounds+1)])
-    print_state(state)
+    return state_num(state)
+
+def aes_decrypt(text: int, cypher_key: int, rounds:int) -> int:
+    values = get_words(text, 128, 8)
+
+    state = np.array(values, dtype=np.uint8).reshape((4, 4)).T
+    sbox, isbox = generate_aes_sbox()
+    keys = getkeys(cypher_key, rounds+1, sbox)
+
+    add_round_key(state, keys[rounds*4:(rounds+1)*4])
+
+    for r in range(rounds-1, 0, -1):
+        ishiftrows(state)
+        subbyte(state, isbox)
+        add_round_key(state, keys[4*r:4*(r+1)])
+        mix_cols(state, IMIXCOLUMNS_MATRIX)
+
+    ishiftrows(state)
+    subbyte(state, isbox)
+    add_round_key(state, keys[0:4])
+    return state_num(state)
 
 
 def main() -> None:
-    aes( 0x00112233445566778899aabbccddeeff,
-         0x000102030405060708090a0b0c0d0e0f,
+    k=0x124712741724781afe
+    x=aes_encrypt(
+       0xf0caf0fa,
+       k,
+       10
+   )
+    y= aes_decrypt(x,
+         k,
          10
         )
+    print(hex(y))
 
     
 
