@@ -27,6 +27,10 @@ def mix_col(r):
     r[3] = b[3] ^ a[2] ^ a[1] ^ b[0] ^ a[0] 
     return r
 
+def mix_cols(state):
+    state = state.T
+    for i in range(4):
+        state[i] = mix_col(state[i])
 
 def cap_8bit(x: int) -> int:
     mask8bit = (1 << 8) - 1
@@ -80,6 +84,9 @@ def subbyte(state: State, sbox):
             state[i][j] = sbox[state[i][j]]
 
 def shiftrows(state: State) -> State:
+    for i in range(4):
+        state[i] = np.roll(state[i], -i)
+def ishiftrows(state: State) -> State:
     for i in range(4):
         state[i] = np.roll(state[i], -i)
 
